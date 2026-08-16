@@ -1,0 +1,129 @@
+{
+  "app_concept": "BEC Progress Assistant - A premium, interactive Business English Certificate coaching tool and analytics dashboard. It combines an immersive recording interface for speaking/writing practice with a high-density analytics dashboard for tracking grammar, vocabulary, and pronunciation over time.",
+  "theme": "light",
+  "typography": {
+    "strategy": "The 'Swiss Brutalist' paired with technical precision. Avoid generic 'Inter' for headings. Use geometric, authoritative fonts for a professional business certificate tool.",
+    "fonts": {
+      "heading": "Outfit",
+      "body": "Manrope",
+      "mono": "JetBrains Mono"
+    },
+    "scale": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tight font-semibold",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-medium",
+      "h3": "text-xl sm:text-2xl font-medium",
+      "h4": "text-lg sm:text-xl font-medium",
+      "body": "text-base leading-relaxed",
+      "small": "text-sm",
+      "ipa_phonetics": "text-sm font-mono tracking-wide text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md",
+      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-slate-500"
+    }
+  },
+  "colors": {
+    "archetype": "ARCHETYPE 4: SWISS & HIGH-CONTRAST + Actionable Educational Accents",
+    "palette": {
+      "background": "#FFFFFF",
+      "surface": "#F8F9FA",
+      "surface_glass": "bg-white/70 backdrop-blur-xl backdrop-saturate-150",
+      "border": "#E5E7EB",
+      "text_primary": "#09090B",
+      "text_secondary": "#52525B",
+      "brand_primary": "#09090B",
+      "brand_primary_hover": "#27272A",
+      "accent_grammar": "#E11D48",
+      "accent_pronunciation": "#10B981",
+      "accent_vocabulary": "#6D28D9",
+      "accent_fluency": "#3B82F6"
+    },
+    "rules": [
+      "Use high-contrast monochrome (Black/White/Grey) for structural elements.",
+      "Use specific accent colors ONLY for language feedback: Red for grammar errors, Green for correct pronunciation/IPA, Violet for vocabulary suggestions, Blue for fluency.",
+      "Never use pure black or pure gray; tint grays slightly.",
+      "Banned colors: #7351B7, #1B93A4."
+    ]
+  },
+  "grids": {
+    "dashboard_bento": "grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+    "dashboard_spans": {
+      "summary_card": "col-span-1",
+      "main_chart": "col-span-2 row-span-2 lg:col-span-3",
+      "feed_list": "col-span-1 row-span-2"
+    },
+    "marketing_layout": "grid-cols-1 md:grid-cols-12 gap-8 md:gap-12"
+  },
+  "layouts": {
+    "spacing_system": "Generous Spacing Philosophy. Use p-6 or p-8 inside cards. Use gap-6 or gap-8 between major sections.",
+    "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+    "alignment": "Left-align dense text and data. Center-align only the main recording UI and high-level marketing headers.",
+    "header": "Sticky top, z-50, crystal glassmorphism (bg-white/70 backdrop-blur-xl border-b border-border/40)."
+  },
+  "components": {
+    "recording_ui": {
+      "style": "Neumorphic or 'Tracing Beam' inspired. Use concentric nested radii and pulsing glow animations when active.",
+      "active_state": "ring-4 ring-red-500/20 bg-red-50 text-red-500 animate-pulse"
+    },
+    "feedback_cards": {
+      "style": "Grid Borders (The Technical Look). Go cardless where possible. Use border-collapse style layouts with 1px border-r border-b to expose the structure and make it feel analytical."
+    },
+    "ipa_badges": {
+      "style": "Pill-shaped, monospace font, subtle background tint matching the feedback type (e.g., green for good pronunciation)."
+    },
+    "buttons": {
+      "primary": "bg-zinc-900 text-white hover:bg-zinc-800 rounded-full px-6 py-2.5 transition-all shadow-sm",
+      "secondary": "bg-white text-zinc-900 border border-zinc-200 hover:bg-zinc-50 rounded-full px-6 py-2.5 transition-all"
+    }
+  },
+  "visual_enhancers": {
+    "surfaces": "Mix 'Grid Borders' for the analytics dashboard with 'Glassmorphism' for sticky headers and modals.",
+    "shadows": "Ambient diffuse shadows: shadow-[0_8px_32px_rgba(0,0,0,0.04)]",
+    "borders": "Crisp edges, 1px semi-transparent (border-black/5)"
+  },
+  "motion": {
+    "interactions": "Hover states must explicitly set text and background color (e.g. hover:bg-zinc-100 hover:text-zinc-900). Buttons should have a slight lift (-translate-y-[1px]).",
+    "transitions": "Use specific properties: transition-[transform,opacity,background-color] duration-200 ease-out. DO NOT use 'transition-all'.",
+    "recording_animation": "Use a subtle scale and opacity keyframe animation for the recording pulse."
+  },
+  "accessibility": {
+    "contrast": "Maintain 4.5:1 ratio for standard text. Never use gray-on-gray for vital feedback.",
+    "focus": "All interactive elements must have focus:ring-2 focus:ring-zinc-900 focus:outline-none.",
+    "testing": "All interactive and key informational elements MUST include a `data-testid` attribute (e.g., data-testid='start-recording-btn')."
+  },
+  "media": {
+    "image_urls": {
+      "speaking_module_banner": {
+        "url": "https://images.unsplash.com/photo-1733222814719-9c756a54ad92?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjY2NzV8MHwxfHNlYXJjaHwyfHxidXNpbmVzcyUyMHByb2Zlc3Npb25hbCUyMHNwZWFraW5nfGVufDB8fHx8MTc4MjA3NTU4MHww&ixlib=rb-4.1.0&q=85",
+        "description": "A woman standing in front of a projector screen giving a presentation. Use for the Speaking Practice entry point or hero section."
+      },
+      "writing_module_banner": {
+        "url": "https://images.unsplash.com/photo-1515378960530-7c0da6231fb1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1Mjh8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBzdHVkeWluZyUyMGxhcHRvcHxlbnwwfHx8fDE3ODY4NjMzNjd8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Person sitting in front of laptop. Use for the Writing Practice entry point."
+      }
+    }
+  },
+  "3d_libraries": {
+    "recommendation": "Use Recharts or Shadcn Charts (recharts under the hood) for dashboard analytics. 3D is overkill for a data-dense linguistic dashboard. Keep it flat, 2D, and highly legible."
+  },
+  "instructions_to_main_agent": [
+    "Install recommended fonts via Google Fonts (Outfit, Manrope, JetBrains Mono) in index.html.",
+    "Install lucide-react for standard icons. Use phosphor-icons for deeper, analytical icons if necessary.",
+    "Set up a layout with a fixed sidebar or top navigation, and a main content area using the Bento grid for analytics.",
+    "For the speaking practice view, create a highly focused UI with a large, animated record button. Split the results into tabs or grid cards: Grammar, Word Choice, and Pronunciation.",
+    "Implement the IPA display using the 'ipa_phonetics' scale from typography guidelines. Example: <span className='font-mono text-emerald-600 bg-emerald-50...'>/prəˌnʌn.siˈeɪ.ʃən/</span>",
+    "Use Shadcn components for complex interactions (Dropdowns, Dialogs, Tabs) but heavily customize their padding and borders to match the Swiss Grid aesthetic.",
+    "Always append `data-testid` to buttons, inputs, and major sections."
+  ],
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": [
+    "You tend to converge toward generic, 'on distribution' outputs. Avoid the 'AI slop' aesthetic.",
+    "Do not use dark colors as gradients.",
+    "Don't make generic centered layouts, simplistic gradients, and uniform styling.",
+    "Create depth through layered design elements with z-index hierarchy.",
+    "Use glass-morphism effects with backdrop filters (12-24px blur).",
+    "You MUST NOT apply universal transition (e.g., transition: all). Add transitions for specific properties.",
+    "You MUST NOT center align the app container. Do not add `.App { text-align: center; }` in CSS.",
+    "Every interaction needs micro-animations - hover states, transitions, entrance animations. Static = dead.",
+    "Use 2-3x more spacing than feels comfortable. Cramped designs look cheap.",
+    "Never use AI assistant Emoji characters (🤖🧠💭) for icons.",
+    "Prioritize using pre-existing components from src/components/ui when applicable.",
+    "Use `sonner` for toasts. Located in /app/src/components/ui/sonner.tsx"
+  ]
+}
