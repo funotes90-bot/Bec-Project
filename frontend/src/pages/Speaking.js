@@ -17,6 +17,7 @@ export default function Speaking() {
   const [seconds, setSeconds] = useState(0);
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
+  const [videoUrl, setVideoUrl] = useState(null);
   const [prompt] = useState(PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
 
   const mediaRecorderRef = useRef(null);
@@ -24,6 +25,7 @@ export default function Speaking() {
   const streamRef = useRef(null);
   const videoRef = useRef(null);
   const timerRef = useRef(null);
+  const frameRef = useRef(null);
 
   useEffect(() => () => stopStream(), []);
 
@@ -34,6 +36,8 @@ export default function Speaking() {
 
   const start = async () => {
     setResult(null);
+    setVideoUrl(null);
+    frameRef.current = null;
     try {
       const constraints = mode === "video" ? { audio: true, video: true } : { audio: true };
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -57,8 +61,19 @@ export default function Speaking() {
     }
   };
 
+  const captureFrame = () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = v.videoWidth;
+    canvas.height = v.videoHeight;
+    canvas.getContext("2d").drawImage(v, 0, 0);
+    return canvas.toDataURL("image/jpeg", 0.8);
+  };
+
   const stop = () => {
     if (mediaRecorderRef.current && recording) {
+      if (mode === "video") frameRef.current = captureFrame();
       mediaRecorderRef.current.stop();
       setRecording(false);
       if (timerRef.current) clearInterval(timerRef.current);
@@ -72,9 +87,16 @@ export default function Speaking() {
       toast.error("Recording too short. Please speak for a few seconds.");
       return;
     }
+    if (mode === "video") setVideoUrl(URL.createObjectURL(blob));
     setAnalyzing(true);
     const form = new FormData();
-    form.append("audio", blob, mode === "video" ? "recording.webm" : "recording.webm");
+    form.append("audio", blob, "recording.webm");
+    if (frameRef.current) {
+      try {
+        const fb = await (await fetch(frameRef.current)).blob();
+        form.append("frame", fb, "frame.jpg");
+      } catch { /* skip frame */ }
+    }
     try {
       const res = await api.post("/speaking/analyze", form, { headers: { "Content-Type": "multipart/form-data" } });
       setResult(res.data);
@@ -155,11 +177,11 @@ export default function Speaking() {
 
       {result && (
         <div>
-          <button onClick={() => { setResult(null); setSeconds(0); }} data-testid="new-recording-btn"
+          <button onClick={() => { setResult(null); setSeconds(0); setVideoUrl(null); }} data-testid="new-recording-btn"
             className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 mb-6 transition-[color] duration-200">
             <RefreshCw size={16} /> Record another
           </button>
-          <AnalysisView analysis={result.analysis} mode="speaking" content={result.transcript} />
+          <AnalysisView analysis={result.analysis} mode="speaking" content={result.transcript} videoUrl={videoUrl} />
         </div>
       )}
     </div>

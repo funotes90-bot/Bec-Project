@@ -7,6 +7,7 @@ load_dotenv(ROOT_DIR / '.env')
 import os
 import json
 import uuid
+import base64
 import logging
 import bcrypt
 import jwt
@@ -20,7 +21,7 @@ from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr, BeforeValidator, ConfigDict
 from bson import ObjectId
 
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from emergentintegrations.llm.chat import LlmChat, UserMessage, ImageContent
 from emergentintegrations.llm.openai import OpenAISpeechToText
 
 # ------------------------------------------------------------------ config
@@ -118,10 +119,10 @@ The JSON schema MUST be exactly:
   "summary": "<2-3 sentence encouraging overview in English>",
   "grammar_issues": [{"original": "<phrase said>", "correction": "<corrected phrase>", "explanation": "<why, plain English>"}],
   "word_choice": [{"original": "<word/phrase used>", "suggestion": "<better business-English word/phrase>", "reason": "<why it is more appropriate>"}],
-  "pronunciation": [{"word": "<word likely mispronounced or tricky>", "ipa": "<full IPA phonetic transcription with slashes e.g. /prəˌnʌn.siˈeɪ.ʃən/>", "tip": "<clear articulation tip>"}],
+  "pronunciation": [{"word": "<word likely mispronounced or tricky>", "ipa_us": "<American English IPA with slashes e.g. /prəˌnʌn.siˈeɪ.ʃən/>", "ipa_gb": "<British English IPA with slashes>", "tip": "<clear articulation tip>"}],
   "strategic_advice": ["<actionable strategic step to improve>", "..."]
 }
-Always include at least 3 pronunciation entries with correct IPA symbols. Provide 2-5 strategic_advice items. If no issues in a category, return an empty array. Never wrap output in markdown."""
+Always include at least 4 pronunciation entries, each with BOTH ipa_us (American) and ipa_gb (British) transcriptions. Provide 2-5 strategic_advice items. If no issues in a category, return an empty array. Never wrap output in markdown."""
 
 WRITING_SYSTEM = """You are an expert Business English Certificate (BEC) writing examiner (CEFR aligned).
 You will receive a piece of writing from a learner. Analyse it thoroughly and reply with STRICT JSON only (no markdown, no code fences).
@@ -164,6 +165,31 @@ async def run_llm(system_message: str, user_text: str) -> dict:
     return _strip_json(response)
 
 
+VISION_SYSTEM = """You are a business presentation and body-language coach. You are given a single still frame captured from a learner's speaking video.
+Assess their visible facial expression, eye contact, and delivery presence for a professional/business context.
+Reply with STRICT JSON only (no markdown, no code fences):
+{
+  "expression_summary": "<2-3 encouraging sentences describing the facial expression, confidence and engagement visible>",
+  "delivery_tips": ["<actionable tip to improve facial expression / presence>", "..."]
+}
+If the image is unclear or no face is visible, note that in expression_summary and give general delivery tips. Provide 2-4 delivery_tips."""
+
+
+async def run_vision(image_bytes: bytes) -> dict:
+    b64 = base64.b64encode(image_bytes).decode()
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"bec-vision-{uuid.uuid4()}",
+        system_message=VISION_SYSTEM,
+    ).with_model("openai", "gpt-5.4")
+    msg = UserMessage(
+        text="Analyse this speaker's facial expression and delivery for a business presentation.",
+        file_contents=[ImageContent(b64)],
+    )
+    response = await chat.send_message(msg)
+    return _strip_json(response)
+
+
 # ------------------------------------------------------------------ auth routes
 @api_router.post("/auth/register")
 async def register(data: RegisterInput):
@@ -200,6 +226,13 @@ async def me(user: dict = Depends(get_current_user)):
 
 
 # ------------------------------------------------------------------ analysis routes
+def _oid(session_id: str) -> ObjectId:
+    try:
+        return ObjectId(session_id)
+    except Exception:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
 async def _save_session(user_id: str, mode: str, content: str, analysis: dict, extra: dict = None):
     doc = {
         "user_id": user_id,
@@ -208,6 +241,7 @@ async def _save_session(user_id: str, mode: str, content: str, analysis: dict, e
         "analysis": analysis,
         "overall_score": analysis.get("overall_score", 0),
         "cefr_level": analysis.get("cefr_level", ""),
+        "saved": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     if extra:
@@ -219,7 +253,7 @@ async def _save_session(user_id: str, mode: str, content: str, analysis: dict, e
 
 
 @api_router.post("/speaking/analyze")
-async def analyze_speaking(user: dict = Depends(get_current_user), audio: UploadFile = File(...)):
+async def analyze_speaking(user: dict = Depends(get_current_user), audio: UploadFile = File(...), frame: Optional[UploadFile] = File(None)):
     content = await audio.read()
     if len(content) == 0:
         raise HTTPException(status_code=400, detail="Empty audio file")
@@ -250,6 +284,14 @@ async def analyze_speaking(user: dict = Depends(get_current_user), audio: Upload
         logger.error(f"LLM analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
 
+    if frame is not None:
+        try:
+            frame_bytes = await frame.read()
+            if frame_bytes:
+                analysis["delivery_feedback"] = await run_vision(frame_bytes)
+        except Exception as e:
+            logger.error(f"Vision analysis failed: {e}")
+
     session = await _save_session(user["id"], "speaking", transcript, analysis, {"transcript": transcript})
     return session
 
@@ -279,26 +321,39 @@ async def list_sessions(user: dict = Depends(get_current_user), mode: Optional[s
     async for doc in cursor:
         doc["id"] = str(doc["_id"])
         doc.pop("_id", None)
+        doc.setdefault("saved", False)
         out.append(doc)
     return out
 
 
 @api_router.get("/sessions/{session_id}")
 async def get_session(session_id: str, user: dict = Depends(get_current_user)):
-    doc = await db.sessions.find_one({"_id": ObjectId(session_id), "user_id": user["id"]})
+    doc = await db.sessions.find_one({"_id": _oid(session_id), "user_id": user["id"]})
     if not doc:
         raise HTTPException(status_code=404, detail="Session not found")
     doc["id"] = str(doc["_id"])
     doc.pop("_id", None)
+    doc.setdefault("saved", False)
     return doc
 
 
 @api_router.delete("/sessions/{session_id}")
 async def delete_session(session_id: str, user: dict = Depends(get_current_user)):
-    result = await db.sessions.delete_one({"_id": ObjectId(session_id), "user_id": user["id"]})
+    result = await db.sessions.delete_one({"_id": _oid(session_id), "user_id": user["id"]})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Session not found")
     return {"ok": True}
+
+
+@api_router.patch("/sessions/{session_id}/save")
+async def toggle_save(session_id: str, user: dict = Depends(get_current_user)):
+    oid = _oid(session_id)
+    doc = await db.sessions.find_one({"_id": oid, "user_id": user["id"]})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Session not found")
+    new_val = not doc.get("saved", False)
+    await db.sessions.update_one({"_id": oid}, {"$set": {"saved": new_val}})
+    return {"saved": new_val}
 
 
 @api_router.get("/progress")

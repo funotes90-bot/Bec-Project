@@ -1,4 +1,39 @@
-import { Activity, Sparkles, Volume2, Target, CheckCircle2, ArrowRight, Award } from "lucide-react";
+import { useState } from "react";
+import { Activity, Sparkles, Volume2, Target, CheckCircle2, ArrowRight, Award, Smile } from "lucide-react";
+import { speak } from "@/lib/tts";
+
+function PlayBtn({ text, accent, size = 7 }) {
+  return (
+    <button
+      type="button"
+      onClick={() => speak(text, accent)}
+      title="Play pronunciation"
+      data-testid="play-audio-btn"
+      className={`inline-flex items-center justify-center rounded-full bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-[background-color] duration-200 flex-shrink-0`}
+      style={{ height: `${size * 4}px`, width: `${size * 4}px` }}
+    >
+      <Volume2 size={size >= 7 ? 14 : 12} />
+    </button>
+  );
+}
+
+function AccentToggle({ accent, setAccent }) {
+  return (
+    <div className="inline-flex items-center gap-1 rounded-full bg-zinc-100 p-1" data-testid="accent-toggle">
+      {[["american", "American"], ["british", "British"]].map(([val, label]) => (
+        <button
+          key={val}
+          type="button"
+          onClick={() => setAccent(val)}
+          data-testid={`accent-${val}`}
+          className={`rounded-full px-3 py-1 text-xs font-medium transition-[background-color,color] duration-200 ${accent === val ? "bg-zinc-900 text-white" : "text-zinc-600 hover:text-zinc-900"}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const SCORE_META = {
   grammar: { label: "Grammar", color: "text-rose-600", bar: "bg-rose-500" },
@@ -24,16 +59,24 @@ function ScoreBar({ k, value }) {
   );
 }
 
-export default function AnalysisView({ analysis, mode, content }) {
+export default function AnalysisView({ analysis, mode, content, videoUrl }) {
+  const [accent, setAccent] = useState("american");
   if (!analysis) return null;
   const {
     cefr_level, overall_score, scores = {}, summary,
     grammar_issues = [], word_choice = [], pronunciation = [],
-    improved_version, strategic_advice = [],
+    improved_version, strategic_advice = [], delivery_feedback,
   } = analysis;
 
   return (
     <div className="space-y-6 animate-fade-up">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">Analysis Result</p>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-zinc-500 hidden sm:inline">Pronunciation accent</span>
+          <AccentToggle accent={accent} setAccent={setAccent} />
+        </div>
+      </div>
       {/* Overview */}
       <div className="grid md:grid-cols-3 gap-6">
         <div className="bg-zinc-900 text-white rounded-2xl p-6 flex flex-col justify-between">
@@ -69,6 +112,38 @@ export default function AnalysisView({ analysis, mode, content }) {
         </div>
       )}
 
+      {mode === "speaking" && videoUrl && (
+        <div className="bg-white rounded-2xl border border-black/5 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Smile className="text-amber-600" size={20} />
+            <h3 className="font-heading font-semibold text-lg text-zinc-900">Your recording — review your expressions</h3>
+          </div>
+          <video src={videoUrl} controls className="w-full max-w-lg rounded-xl border border-black/5 bg-black" data-testid="recorded-video" />
+        </div>
+      )}
+
+      {mode === "speaking" && delivery_feedback && (
+        <div className="bg-amber-50/50 rounded-2xl border border-amber-100 p-6">
+          <div className="flex items-center gap-2 mb-4">
+            <Smile className="text-amber-600" size={20} />
+            <h3 className="font-heading font-semibold text-lg text-zinc-900">Facial Expression & Delivery</h3>
+          </div>
+          {delivery_feedback.expression_summary && (
+            <p className="text-zinc-700 leading-relaxed mb-4">{delivery_feedback.expression_summary}</p>
+          )}
+          {Array.isArray(delivery_feedback.delivery_tips) && delivery_feedback.delivery_tips.length > 0 && (
+            <ul className="space-y-2">
+              {delivery_feedback.delivery_tips.map((t, i) => (
+                <li key={i} className="flex gap-2 text-sm text-zinc-700">
+                  <CheckCircle2 size={16} className="text-amber-500 flex-shrink-0 mt-0.5" />
+                  <span className="leading-relaxed">{t}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Pronunciation with IPA */}
       {mode === "speaking" && pronunciation.length > 0 && (
         <div className="bg-white rounded-2xl border border-black/5 p-6">
@@ -79,9 +154,17 @@ export default function AnalysisView({ analysis, mode, content }) {
           <div className="grid sm:grid-cols-2 gap-4">
             {pronunciation.map((p, i) => (
               <div key={i} className="border border-emerald-100 bg-emerald-50/40 rounded-xl p-4">
-                <div className="flex items-baseline gap-3 flex-wrap">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-heading font-semibold text-zinc-900">{p.word}</span>
-                  <span className="font-mono text-sm tracking-wide text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">{p.ipa}</span>
+                  <PlayBtn text={p.word} accent={accent} />
+                </div>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {(p.ipa_us || p.ipa) && (
+                    <span className="font-mono text-xs tracking-wide text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">US {p.ipa_us || p.ipa}</span>
+                  )}
+                  {p.ipa_gb && (
+                    <span className="font-mono text-xs tracking-wide text-blue-700 bg-blue-50 px-2 py-0.5 rounded-md">UK {p.ipa_gb}</span>
+                  )}
                 </div>
                 <p className="mt-2 text-sm text-zinc-600 leading-relaxed">{p.tip}</p>
               </div>
@@ -107,6 +190,7 @@ export default function AnalysisView({ analysis, mode, content }) {
                   <span className="line-through text-rose-500">{g.original}</span>
                   <ArrowRight size={14} className="text-zinc-400" />
                   <span className="font-medium text-emerald-700">{g.correction}</span>
+                  <PlayBtn text={g.correction} accent={accent} size={6} />
                 </div>
                 <p className="mt-1 text-sm text-zinc-600">{g.explanation}</p>
               </div>
@@ -132,6 +216,7 @@ export default function AnalysisView({ analysis, mode, content }) {
                   <span className="text-zinc-500">{w.original}</span>
                   <ArrowRight size={14} className="text-zinc-400" />
                   <span className="font-medium text-violet-700">{w.suggestion}</span>
+                  <PlayBtn text={w.suggestion} accent={accent} size={6} />
                 </div>
                 <p className="mt-1 text-sm text-zinc-600">{w.reason}</p>
               </div>
@@ -143,7 +228,10 @@ export default function AnalysisView({ analysis, mode, content }) {
       {/* Improved version (writing) */}
       {improved_version && (
         <div className="bg-white rounded-2xl border border-black/5 p-6">
-          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-3">Polished Version</p>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-xs font-bold uppercase tracking-widest text-zinc-400">Polished Version</p>
+            <PlayBtn text={improved_version} accent={accent} />
+          </div>
           <p className="text-zinc-700 leading-relaxed whitespace-pre-wrap">{improved_version}</p>
         </div>
       )}

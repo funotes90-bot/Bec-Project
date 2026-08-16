@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Mic, PenLine, Loader2, Trash2, ChevronRight } from "lucide-react";
+import { Mic, PenLine, Loader2, Trash2, ChevronRight, Bookmark } from "lucide-react";
 import api from "@/lib/api";
 import { toast } from "sonner";
 
@@ -27,7 +27,21 @@ export default function History() {
     }
   };
 
-  const filtered = sessions.filter((s) => filter === "all" || s.mode === filter);
+  const toggleSave = async (e, id) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      const res = await api.patch(`/sessions/${id}/save`);
+      setSessions((s) => s.map((x) => (x.id === id ? { ...x, saved: res.data.saved } : x)));
+      toast.success(res.data.saved ? "Saved to your collection" : "Removed from saved");
+    } catch {
+      toast.error("Could not update");
+    }
+  };
+
+  const filtered = sessions.filter((s) =>
+    filter === "all" ? true : filter === "saved" ? s.saved : s.mode === filter
+  );
 
   return (
     <div className="space-y-8">
@@ -37,7 +51,7 @@ export default function History() {
       </div>
 
       <div className="flex gap-2">
-        {["all", "speaking", "writing"].map((f) => (
+        {["all", "speaking", "writing", "saved"].map((f) => (
           <button key={f} onClick={() => setFilter(f)} data-testid={`filter-${f}`}
             className={`rounded-full px-4 py-1.5 text-sm font-medium capitalize transition-[background-color,color] duration-200 ${filter === f ? "bg-zinc-900 text-white" : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}>
             {f}
@@ -65,6 +79,10 @@ export default function History() {
                 <p className="font-heading text-2xl font-bold text-zinc-900">{s.overall_score}</p>
                 <p className="text-[10px] uppercase tracking-widest text-zinc-400">score</p>
               </div>
+              <button onClick={(e) => toggleSave(e, s.id)} data-testid={`save-${s.id}`}
+                className={`p-2 transition-[color] duration-200 ${s.saved ? "text-amber-500" : "text-zinc-300 hover:text-amber-500"}`} title={s.saved ? "Saved" : "Save"}>
+                <Bookmark size={16} fill={s.saved ? "currentColor" : "none"} />
+              </button>
               <button onClick={(e) => remove(e, s.id)} data-testid={`delete-${s.id}`} className="p-2 text-zinc-300 hover:text-rose-500 transition-[color] duration-200">
                 <Trash2 size={16} />
               </button>

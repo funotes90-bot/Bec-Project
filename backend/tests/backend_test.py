@@ -135,6 +135,40 @@ class TestWritingFlow:
         assert p["total_sessions"] >= 1
         assert isinstance(p["timeline"], list)
 
+    def test_session_has_saved_field(self, demo_headers):
+        r = requests.get(f"{API}/sessions", headers=demo_headers, timeout=30)
+        assert r.status_code == 200
+        # Only verify on the session we just created; legacy pre-feature sessions may lack it.
+        target = next((s for s in r.json() if s["id"] == TestWritingFlow.session_id), None)
+        assert target is not None
+        assert "saved" in target, "newly created session missing 'saved' field"
+        assert target["saved"] is False
+
+    def test_toggle_save_requires_auth(self):
+        assert TestWritingFlow.session_id
+        r = requests.patch(f"{API}/sessions/{TestWritingFlow.session_id}/save", timeout=15)
+        assert r.status_code == 401
+
+    def test_toggle_save_flow(self, demo_headers):
+        assert TestWritingFlow.session_id
+        # first toggle -> True
+        r = requests.patch(f"{API}/sessions/{TestWritingFlow.session_id}/save", headers=demo_headers, timeout=15)
+        assert r.status_code == 200
+        assert r.json() == {"saved": True}
+        # verify persistence
+        r2 = requests.get(f"{API}/sessions/{TestWritingFlow.session_id}", headers=demo_headers, timeout=15)
+        assert r2.status_code == 200
+        assert r2.json()["saved"] is True
+        # second toggle -> False
+        r3 = requests.patch(f"{API}/sessions/{TestWritingFlow.session_id}/save", headers=demo_headers, timeout=15)
+        assert r3.status_code == 200
+        assert r3.json() == {"saved": False}
+
+    def test_toggle_save_not_found(self, demo_headers):
+        fake_id = "507f1f77bcf86cd799439011"
+        r = requests.patch(f"{API}/sessions/{fake_id}/save", headers=demo_headers, timeout=15)
+        assert r.status_code == 404
+
     def test_session_delete(self, demo_headers):
         assert TestWritingFlow.session_id
         r = requests.delete(f"{API}/sessions/{TestWritingFlow.session_id}", headers=demo_headers, timeout=30)
