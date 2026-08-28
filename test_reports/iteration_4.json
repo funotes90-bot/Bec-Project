@@ -1,0 +1,33 @@
+{
+  "summary": "Frontend-only testing of the 3 new features (Dashboard PDF export, prompt categories on Speaking/Writing, adjustable thinking timer) plus writing regressions, using the public REACT_APP_BACKEND_URL and demo@bec.app/demo123. All 3 new features work end-to-end: PDF download fires a real download named BEC_Progress_Demo_User.pdf with a valid %PDF- header (19KB); all 6 category chips render on both pages, set active state, switch the prompt to a topic that provably belongs to that category, and shuffle stays inside the selected category (verified against the full category prompt lists for all 5 categories on both pages); thinking timer starts at exactly the selected duration (5 and 15 verified) and decrements, and category chips are correctly disabled during the countdown. Typed-text analysis and photo-of-handwriting upload regressions both rendered AnalysisView correctly. Zero JS console/page errors across all runs. One mobile layout defect found: the dashboard action row now overflows the viewport horizontally.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Dashboard (mobile 390x844)",
+        "issues": [
+          "Adding the new 'Download PDF' button to the header action row causes horizontal page overflow: document.scrollWidth=405 vs clientWidth=390. The 'quick-writing' button is clipped off-screen (x=293, width=112 -> 405). Cause: the wrapper div in Dashboard.js line 59 is 'flex gap-3' with no wrapping. Fix: add 'flex-wrap' (e.g. className=\"flex flex-wrap gap-3\")."
+        ]
+      }
+    ]
+  },
+  "test_report_links": ["/app/test_reports/iteration_4.json"],
+  "action_items": [
+    "Dashboard.js line 59: change 'flex gap-3' to 'flex flex-wrap gap-3' to stop mobile horizontal overflow / clipped Writing button."
+  ],
+  "critical_code_review_comments": [
+    "Speaking.js initial prompt uses randomPrompt(SPEAKING_PROMPTS) (flat list) while category state defaults to 'all'; SPEAKING_PROMPTS has 31 items but the 5 categories flatten to 30 (the flat-list-only prompt is included in categories, so behaviour is consistent) - consider seeding the initial prompt from promptsForCategory() so the flat arrays can eventually be dropped and cannot drift out of sync with the category arrays. Same pattern in Writing.js.",
+    "report.js: generateProgressReport assumes progress is non-null; downloadReport() is only reachable when !empty so it is safe today, but the try/catch toast is the only guard - acceptable.",
+    "prompts.js is now the single source of truth in two shapes (flat + categorised); duplicated prompt strings risk silent drift. Consider deriving the flat list from the categories via flatMap."
+  ],
+  "updated_files": [],
+  "success_rate": { "backend": "not tested (per request)", "frontend": "100% functional (1 mobile layout defect)" },
+  "seed_data_creation": "None created deliberately; the regression tests added 2 writing sessions to demo@bec.app (typed + handwriting image), demo user now has 8 writing sessions.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "demo@bec.app / demo123 (from /app/memory/test_credentials.md) - valid and working",
+  "context_for_next_testing_agent": "Verified via Playwright on the public URL: (1) PDF export - use page.expect_download; suggested_filename=BEC_Progress_Demo_User.pdf, file starts with %PDF-. (2) Category chips on /speaking and /writing - membership asserted against hardcoded copies of SPEAKING_CATEGORIES/WRITING_CATEGORIES prompt lists; shuffle x5 per category stayed in-category. (3) Thinking timer - selected 5 -> countdown text starts '5', decrements to '4' after 1.6s; reload then select 15 -> starts '15'; chips disabled during countdown. Mic recording after countdown was not exercised. Only open item is the mobile dashboard flex-wrap overflow.",
+  "rca_of_the_issue": "Mobile overflow RCA: Dashboard.js header uses 'flex flex-wrap items-end justify-between gap-4' for the outer row but the inner button container is 'flex gap-3' (no wrap). With three pills (Download PDF, Speaking, Writing) the intrinsic width exceeds 390px, so the last pill is pushed past the viewport and the document gains 15px of horizontal scroll."
+}

@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Mic, PenLine, TrendingUp, Layers, Award, AlertTriangle, Target, ArrowRight, Loader2 } from "lucide-react";
+import { Mic, PenLine, TrendingUp, Layers, Award, AlertTriangle, Target, ArrowRight, Loader2, Download } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from "recharts";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
+import { generateProgressReport } from "@/lib/report";
+import { toast } from "sonner";
 
 function Stat({ icon: Icon, label, value, sub }) {
   return (
@@ -18,11 +20,23 @@ function Stat({ icon: Icon, label, value, sub }) {
 export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
+  const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get("/progress").then((r) => setData(r.data)).finally(() => setLoading(false));
+    Promise.all([api.get("/progress"), api.get("/sessions")])
+      .then(([p, s]) => { setData(p.data); setSessions(s.data); })
+      .finally(() => setLoading(false));
   }, []);
+
+  const downloadReport = () => {
+    try {
+      generateProgressReport({ user, progress: data, sessions });
+      toast.success("Report downloaded");
+    } catch (e) {
+      toast.error("Could not generate report");
+    }
+  };
 
   if (loading)
     return <div className="flex justify-center py-20"><Loader2 className="animate-spin text-zinc-900" size={32} /></div>;
@@ -42,7 +56,13 @@ export default function Dashboard() {
           <span className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400">Dashboard</span>
           <h1 className="font-heading text-3xl sm:text-4xl font-bold text-zinc-900 mt-2">Hi {user?.name?.split(" ")[0]} 👋</h1>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
+          {!empty && (
+            <button onClick={downloadReport} data-testid="download-report-btn"
+              className="inline-flex items-center gap-2 bg-white border border-zinc-200 text-zinc-900 hover:bg-zinc-50 rounded-full px-5 py-2.5 text-sm font-medium transition-[background-color] duration-200">
+              <Download size={16} /> Download PDF
+            </button>
+          )}
           <Link to="/speaking" data-testid="quick-speaking" className="inline-flex items-center gap-2 bg-zinc-900 text-white hover:bg-zinc-800 rounded-full px-5 py-2.5 text-sm font-medium transition-[background-color] duration-200"><Mic size={16} /> Speaking</Link>
           <Link to="/writing" data-testid="quick-writing" className="inline-flex items-center gap-2 bg-white border border-zinc-200 text-zinc-900 hover:bg-zinc-50 rounded-full px-5 py-2.5 text-sm font-medium transition-[background-color] duration-200"><PenLine size={16} /> Writing</Link>
         </div>

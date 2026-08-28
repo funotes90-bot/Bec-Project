@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from "react";
 import { Mic, Square, Loader2, Video, RefreshCw, Volume2, Shuffle, Lightbulb } from "lucide-react";
 import api, { formatApiError } from "@/lib/api";
 import AnalysisView from "@/components/AnalysisView";
-import { SPEAKING_PROMPTS, randomPrompt } from "@/lib/prompts";
+import { SPEAKING_PROMPTS, SPEAKING_CATEGORIES, promptsForCategory, randomPrompt } from "@/lib/prompts";
 import { toast } from "sonner";
 
 export default function Speaking() {
@@ -12,6 +12,8 @@ export default function Speaking() {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   const [videoUrl, setVideoUrl] = useState(null);
+  const [category, setCategory] = useState("all");
+  const [thinkDuration, setThinkDuration] = useState(10);
   const [prompt, setPrompt] = useState(() => randomPrompt(SPEAKING_PROMPTS));
   const [thinkLeft, setThinkLeft] = useState(0);
 
@@ -35,7 +37,13 @@ export default function Speaking() {
 
   const shufflePrompt = () => {
     if (recording || thinkLeft > 0) return;
-    setPrompt((p) => randomPrompt(SPEAKING_PROMPTS, p));
+    setPrompt((p) => randomPrompt(promptsForCategory(SPEAKING_CATEGORIES, category), p));
+  };
+
+  const changeCategory = (catId) => {
+    if (recording || thinkLeft > 0) return;
+    setCategory(catId);
+    setPrompt(randomPrompt(promptsForCategory(SPEAKING_CATEGORIES, catId)));
   };
 
   const prepare = () => {
@@ -43,7 +51,7 @@ export default function Speaking() {
     setResult(null);
     setVideoUrl(null);
     autoStartRef.current = true;
-    setThinkLeft(10);
+    setThinkLeft(thinkDuration);
     thinkRef.current = setInterval(() => {
       setThinkLeft((t) => (t <= 1 ? (clearInterval(thinkRef.current), 0) : t - 1));
     }, 1000);
@@ -144,6 +152,19 @@ export default function Speaking() {
         <h1 className="font-heading text-3xl sm:text-4xl font-bold text-zinc-900 mt-2">Record & analyse your speaking</h1>
       </div>
 
+      {/* Category selector */}
+      {!result && (
+        <div className="flex flex-wrap gap-2" data-testid="speaking-categories">
+          {[{ id: "all", label: "All Topics" }, ...SPEAKING_CATEGORIES].map((c) => (
+            <button key={c.id} onClick={() => changeCategory(c.id)} data-testid={`speaking-cat-${c.id}`}
+              disabled={recording || thinkLeft > 0}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-[background-color,color] duration-200 disabled:opacity-40 ${category === c.id ? "bg-zinc-900 text-white" : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Prompt card */}
       {!result && (
       <div className="bg-white rounded-2xl border border-black/5 p-6 flex items-start gap-4">
@@ -164,13 +185,26 @@ export default function Speaking() {
       {/* Recorder */}
       {!result && (
         <div className="bg-white rounded-2xl border border-black/5 p-8">
-          <div className="flex justify-center gap-2 mb-8">
+          <div className="flex justify-center gap-2 mb-6">
             {["audio", "video"].map((m) => (
               <button key={m} onClick={() => !recording && setMode(m)} data-testid={`mode-${m}`} disabled={recording}
                 className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-medium transition-[background-color,color] duration-200 ${mode === m ? "bg-zinc-900 text-white" : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"}`}>
                 {m === "audio" ? <Mic size={16} /> : <Video size={16} />} {m === "audio" ? "Audio" : "Video"}
               </button>
             ))}
+          </div>
+
+          <div className="flex flex-col items-center gap-2 mb-8" data-testid="think-time-selector">
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Thinking time</span>
+            <div className="inline-flex items-center gap-1 rounded-full bg-zinc-100 p-1">
+              {[5, 10, 15].map((d) => (
+                <button key={d} onClick={() => !recording && thinkLeft === 0 && setThinkDuration(d)} data-testid={`think-time-${d}`}
+                  disabled={recording || thinkLeft > 0}
+                  className={`rounded-full px-4 py-1 text-sm font-medium transition-[background-color,color] duration-200 disabled:opacity-40 ${thinkDuration === d ? "bg-zinc-900 text-white" : "text-zinc-600 hover:text-zinc-900"}`}>
+                  {d}s
+                </button>
+              ))}
+            </div>
           </div>
 
           {mode === "video" && (
@@ -219,7 +253,7 @@ export default function Speaking() {
                 </button>
                 <div className="text-center">
                   <p className="font-mono text-2xl font-semibold text-zinc-900">{fmt(0)}</p>
-                  <p className="text-sm text-zinc-500 mt-1">Tap for 10s thinking time, then recording starts</p>
+                  <p className="text-sm text-zinc-500 mt-1">Tap for {thinkDuration}s thinking time, then recording starts</p>
                 </div>
               </>
             )}
@@ -229,7 +263,7 @@ export default function Speaking() {
 
       {result && (
         <div>
-          <button onClick={() => { setResult(null); setSeconds(0); setVideoUrl(null); setPrompt(randomPrompt(SPEAKING_PROMPTS)); }} data-testid="new-recording-btn"
+          <button onClick={() => { setResult(null); setSeconds(0); setVideoUrl(null); setPrompt(randomPrompt(promptsForCategory(SPEAKING_CATEGORIES, category))); }} data-testid="new-recording-btn"
             className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 mb-6 transition-[color] duration-200">
             <RefreshCw size={16} /> Record another
           </button>

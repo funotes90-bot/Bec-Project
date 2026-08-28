@@ -2,15 +2,21 @@ import { useState, useRef } from "react";
 import { PenLine, Loader2, RefreshCw, Sparkles, Shuffle, Camera } from "lucide-react";
 import api, { formatApiError } from "@/lib/api";
 import AnalysisView from "@/components/AnalysisView";
-import { WRITING_PROMPTS, randomPrompt } from "@/lib/prompts";
+import { WRITING_PROMPTS, WRITING_CATEGORIES, promptsForCategory, randomPrompt } from "@/lib/prompts";
 import { toast } from "sonner";
 
 export default function Writing() {
   const [text, setText] = useState("");
+  const [category, setCategory] = useState("all");
   const [prompt, setPrompt] = useState(() => randomPrompt(WRITING_PROMPTS));
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   const fileRef = useRef(null);
+
+  const changeCategory = (catId) => {
+    setCategory(catId);
+    setPrompt(randomPrompt(promptsForCategory(WRITING_CATEGORIES, catId)));
+  };
 
   const analyzePhoto = async (e) => {
     const file = e.target.files?.[0];
@@ -57,6 +63,17 @@ export default function Writing() {
       </div>
 
       {!result && (
+        <div className="flex flex-wrap gap-2" data-testid="writing-categories">
+          {[{ id: "all", label: "All Topics" }, ...WRITING_CATEGORIES].map((c) => (
+            <button key={c.id} onClick={() => changeCategory(c.id)} data-testid={`writing-cat-${c.id}`}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-[background-color,color] duration-200 ${category === c.id ? "bg-zinc-900 text-white" : "bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-50"}`}>
+              {c.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {!result && (
       <div className="bg-white rounded-2xl border border-black/5 p-6 flex items-start gap-4">
         <div className="h-10 w-10 rounded-xl bg-zinc-900 flex items-center justify-center flex-shrink-0">
           <PenLine className="text-white" size={18} />
@@ -65,7 +82,7 @@ export default function Writing() {
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-1">Writing prompt</p>
           <p className="text-zinc-800 font-medium" data-testid="writing-prompt">{prompt}</p>
         </div>
-        <button onClick={() => setPrompt((p) => randomPrompt(WRITING_PROMPTS, p))} data-testid="shuffle-writing-btn"
+        <button onClick={() => setPrompt((p) => randomPrompt(promptsForCategory(WRITING_CATEGORIES, category), p))} data-testid="shuffle-writing-btn"
           className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-[background-color] duration-200 flex-shrink-0">
           <Shuffle size={14} /> New
         </button>
@@ -111,7 +128,7 @@ export default function Writing() {
 
       {result && (
         <div>
-          <button onClick={() => { setResult(null); setText(""); setPrompt(randomPrompt(WRITING_PROMPTS)); }} data-testid="new-writing-btn"
+          <button onClick={() => { setResult(null); setText(""); setPrompt(randomPrompt(promptsForCategory(WRITING_CATEGORIES, category))); }} data-testid="new-writing-btn"
             className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 mb-6 transition-[color] duration-200">
             <RefreshCw size={16} /> Write another
           </button>
