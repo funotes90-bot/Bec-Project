@@ -4,6 +4,7 @@ import { GraduationCap, Loader2 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
+import becBuilding from "@/assets/bec_building.jpg";
 
 export default function Auth() {
   const [mode, setMode] = useState("login");
@@ -40,7 +41,7 @@ export default function Auth() {
   return (
     <div className="min-h-screen grid lg:grid-cols-2 bg-white">
       <div className="hidden lg:block relative">
-        <img src="https://images.unsplash.com/photo-1515378960530-7c0da6231fb1?crop=entropy&cs=srgb&fm=jpg&q=85&w=1200" alt="Studying business English" className="absolute inset-0 h-full w-full object-cover" />
+        <img src={becBuilding} alt="BEC Pare building" className="absolute inset-0 h-full w-full object-cover object-center" />
         <div className="absolute inset-0 bg-zinc-900/60" />
         <div className="absolute bottom-12 left-12 right-12 text-white">
           <h2 className="font-heading text-3xl font-bold leading-tight">Advance your Business English, one session at a time.</h2>

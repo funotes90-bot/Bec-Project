@@ -2,6 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect } from "react";
 import { Mic, PenLine, Activity, Volume2, Sparkles, GraduationCap, ArrowRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import becBuilding from "@/assets/bec_building.jpg";
 
 const features = [
   { icon: Activity, color: "text-rose-600", bg: "bg-rose-50", title: "Grammar Analysis", desc: "Every sentence checked, with corrections and plain-English explanations." },
@@ -36,7 +37,7 @@ export default function Landing() {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-16 grid lg:grid-cols-12 gap-12 items-center">
         <div className="lg:col-span-7 animate-fade-up">
           <span className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.2em] text-zinc-500 mb-6">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> Business English Certificate Coach
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> BASIC ENGLISH COURSE
           </span>
           <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl tracking-tight font-bold text-zinc-900 leading-[1.05]">
             Speak & write English.<br />
@@ -57,7 +58,7 @@ export default function Landing() {
         </div>
         <div className="lg:col-span-5 animate-fade-up" style={{ animationDelay: "120ms" }}>
           <div className="relative rounded-3xl overflow-hidden border border-black/5 shadow-[0_20px_60px_rgba(0,0,0,0.10)]">
-            <img src="https://images.unsplash.com/photo-1733222814719-9c756a54ad92?crop=entropy&cs=srgb&fm=jpg&q=85&w=900" alt="Business English speaking practice" className="w-full h-[420px] object-cover" />
+            <img src={becBuilding} alt="BEC Pare building" className="w-full h-[520px] object-cover object-center" />
             <div className="absolute bottom-4 left-4 right-4 bg-white/80 backdrop-blur-xl rounded-2xl p-4 border border-white/60">
               <p className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-1">Pronunciation</p>
               <p className="font-mono text-sm text-emerald-700">negotiation <span className="bg-emerald-50 px-2 py-0.5 rounded-md">/nɪˌɡoʊ.ʃiˈeɪ.ʃən/</span></p>
