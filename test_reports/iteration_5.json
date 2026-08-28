@@ -1,0 +1,39 @@
+{
+  "summary": "Tested the 3 new features (weekly practice targets, Class Mode teacher page, PDF with score-progression chart). Backend: 11 new pytest tests in /app/backend/tests/test_goals_class.py — all PASS (PUT /api/goals auth+validation+persistence, GET /api/progress weekly block incl. defaults 5/3 for a brand-new account, GET /api/admin/students 401/403/200 + payload shape + no _id + admin excluded from student list). Frontend (Playwright, external URL): demo@bec.app weekly-goals-card renders, Set targets dialog saves 9/6 and card updates live to 0/9 and 5/6 without reload, Download PDF produced BEC_Progress_Demo_User.pdf (940 KB, %PDF header, chart embedded) with zero console errors, no 'Class' nav item and direct /class visit redirects to /dashboard. admin@bec.app sees nav-class, /class renders 227 student rows + summary cards (Students 227, Class Avg 49, Total Sessions 31), and 'Download combined report' produced BEC_Class_Report_2026-08-28.pdf (406 KB, %PDF). Demo goals restored to 5/3 after testing.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/admin/students", "issue": "N+1 query pattern: one db.sessions.find per user (227 queries per request). Works today (~1-2s) but will degrade as students/sessions grow — consider a single $group aggregation over sessions."},
+      {"endpoint": "CORS / auth hardening", "issue": "allow_credentials=True with CORS_ORIGINS defaulting to '*' (wildcard + credentials is rejected by browsers); also no brute-force lockout on POST /api/auth/login (playbook items). Not blocking since auth uses Bearer tokens in localStorage, not cookies."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "App.js routes", "issue": "No catch-all/404 route — unknown paths (e.g. /login) render a completely blank white page instead of redirecting to / or /auth.", "selector": "n/a", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Class Mode (/class)", "issues": ["All 227 students rendered in one unpaginated table; no search/filter/sort control, and rows sorted by name mean the top of the table is a long list of 0/0/0 inactive accounts — active learners are buried. Suggest search + pagination or 'active first' sorting.", "Student rows are not clickable/no drill-down into an individual learner's sessions."]}
+    ]
+  },
+  "test_report_links": ["/app/backend/tests/test_goals_class.py", "/app/test_reports/pytest/iter5_results.xml"],
+  "action_items": [
+    "Optional: replace per-user session queries in /api/admin/students with a MongoDB aggregation.",
+    "Add a catch-all route (<Route path='*' .../>) so unknown URLs don't render a blank page.",
+    "Add search/pagination (or active-first ordering) to the Class Mode students table.",
+    "Set explicit CORS_ORIGINS instead of '*' while allow_credentials=True."
+  ],
+  "critical_code_review_comments": [
+    "ClassMode.js: api.get('/admin/students') has no .catch — a 403/500 leaves students=[] and silently shows the 'No students yet' empty state with no error toast; add an error state.",
+    "server.py list_students: N+1 DB access; also 'mode' is accessed with s['mode'] (KeyError if any legacy session lacks the field) — use s.get('mode').",
+    "Weekly 'achieved' badge in Dashboard requires BOTH goals met; when a goal is 0 the bar shows 0% (pct=0) even though the target is trivially achieved — minor logic nit."
+  ],
+  "updated_files": ["/app/backend/tests/test_goals_class.py"],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% of the 4 new flows"},
+  "seed_data_creation": "One throwaway registered account TEST_goals_<random>@example.com to verify default goals 5/3 (no sessions created).",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "demo@bec.app/demo123 (role user), admin@bec.app/admin123 (role admin) — both valid; /app/memory/test_credentials.md is present and accurate.",
+  "context_for_next_testing_agent": "Iteration-5 features (weekly goals, Class Mode, PDF chart) are fully verified end-to-end and passing. New regression file: /app/backend/tests/test_goals_class.py. Login route is /auth (NOT /login). Playwright expect_download works for both PDF buttons. Demo user has 8 writing sessions, 0 speaking; goals reset to 5/3.",
+  "rca_of_the_issue": "No functional defect found in the 3 new features. Only non-blocking items: N+1 aggregation in /admin/students, missing 404 route, unpaginated 227-row class table, missing error handling on the /admin/students fetch, and CORS wildcard + credentials."
+}

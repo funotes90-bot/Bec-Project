@@ -10,6 +10,7 @@ import Speaking from "@/pages/Speaking";
 import Writing from "@/pages/Writing";
 import History from "@/pages/History";
 import SessionDetail from "@/pages/SessionDetail";
+import ClassMode from "@/pages/ClassMode";
 
 function Protected({ children }) {
   const { user, loading } = useAuth();
@@ -35,7 +36,9 @@ function App() {
             <Route path="/speaking" element={<Protected><Speaking /></Protected>} />
             <Route path="/writing" element={<Protected><Writing /></Protected>} />
             <Route path="/history" element={<Protected><History /></Protected>} />
+            <Route path="/class" element={<Protected><ClassMode /></Protected>} />
             <Route path="/session/:id" element={<Protected><SessionDetail /></Protected>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
         <Toaster position="top-center" />

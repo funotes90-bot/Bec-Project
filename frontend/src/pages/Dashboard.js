@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Mic, PenLine, TrendingUp, Layers, Award, AlertTriangle, Target, ArrowRight, Loader2, Download } from "lucide-react";
+import { Mic, PenLine, TrendingUp, Layers, Award, AlertTriangle, Target, ArrowRight, Loader2, Download, CheckCircle2, Pencil } from "lucide-react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, RadarChart, PolarGrid, PolarAngleAxis, Radar } from "recharts";
 import api from "@/lib/api";
 import { useAuth } from "@/context/AuthContext";
 import { generateProgressReport } from "@/lib/report";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
 function Stat({ icon: Icon, label, value, sub }) {
@@ -17,17 +18,61 @@ function Stat({ icon: Icon, label, value, sub }) {
   );
 }
 
+function GoalBar({ icon: Icon, label, done, goal, color }) {
+  const pct = goal > 0 ? Math.min(100, Math.round((done / goal) * 100)) : 100;
+  const achieved = goal === 0 || done >= goal;
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="flex items-center gap-2 text-sm font-medium text-zinc-700"><Icon size={16} /> {label}</span>
+        <span className="flex items-center gap-1.5 font-mono text-sm text-zinc-900">
+          {done}/{goal}
+          {achieved && <CheckCircle2 size={16} className="text-emerald-500" />}
+        </span>
+      </div>
+      <div className="h-2.5 rounded-full bg-zinc-100 overflow-hidden">
+        <div className={`h-full rounded-full transition-[width] duration-700 ${achieved ? "bg-emerald-500" : color}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export default function Dashboard() {
   const { user } = useAuth();
   const [data, setData] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [goalSpeaking, setGoalSpeaking] = useState(5);
+  const [goalWriting, setGoalWriting] = useState(3);
+  const [savingGoal, setSavingGoal] = useState(false);
+
+  const loadData = () =>
+    Promise.all([api.get("/progress"), api.get("/sessions")]).then(([p, s]) => { setData(p.data); setSessions(s.data); });
 
   useEffect(() => {
-    Promise.all([api.get("/progress"), api.get("/sessions")])
-      .then(([p, s]) => { setData(p.data); setSessions(s.data); })
-      .finally(() => setLoading(false));
+    loadData().finally(() => setLoading(false));
   }, []);
+
+  const openGoalDialog = () => {
+    setGoalSpeaking(data?.weekly?.speaking_goal ?? 5);
+    setGoalWriting(data?.weekly?.writing_goal ?? 3);
+    setGoalOpen(true);
+  };
+
+  const saveGoals = async () => {
+    setSavingGoal(true);
+    try {
+      await api.put("/goals", { speaking: Number(goalSpeaking), writing: Number(goalWriting) });
+      await loadData();
+      toast.success("Weekly targets updated");
+      setGoalOpen(false);
+    } catch {
+      toast.error("Could not save targets");
+    } finally {
+      setSavingGoal(false);
+    }
+  };
 
   const downloadReport = () => {
     try {
@@ -86,6 +131,31 @@ export default function Dashboard() {
             <Stat icon={Mic} label="Speaking" value={data.speaking_count} sub="sessions" />
             <Stat icon={PenLine} label="Writing" value={data.writing_count} sub="sessions" />
           </div>
+
+          {data.weekly && (
+            <div className="bg-white rounded-2xl border border-black/5 p-6" data-testid="weekly-goals-card">
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-2">
+                  <Target className="text-blue-600" size={18} />
+                  <h3 className="font-heading font-semibold text-lg text-zinc-900">Weekly targets</h3>
+                  <span className="text-xs text-zinc-400 hidden sm:inline">· week of {data.weekly.week_start}</span>
+                </div>
+                <button onClick={openGoalDialog} data-testid="edit-goals-btn"
+                  className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-[background-color] duration-200">
+                  <Pencil size={14} /> Set targets
+                </button>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-6">
+                <GoalBar icon={Mic} label="Speaking" done={data.weekly.speaking_done} goal={data.weekly.speaking_goal} color="bg-emerald-500" />
+                <GoalBar icon={PenLine} label="Writing" done={data.weekly.writing_done} goal={data.weekly.writing_goal} color="bg-violet-600" />
+              </div>
+              {data.weekly.speaking_done >= data.weekly.speaking_goal && data.weekly.writing_done >= data.weekly.writing_goal && (
+                <p className="mt-5 text-sm text-emerald-700 bg-emerald-50 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <CheckCircle2 size={16} /> Great job! You've hit all your targets this week.
+                </p>
+              )}
+            </div>
+          )}
 
           <div className="grid lg:grid-cols-3 gap-6">
             <div className="lg:col-span-2 bg-white rounded-2xl border border-black/5 p-6">
@@ -152,6 +222,32 @@ export default function Dashboard() {
           </Link>
         </>
       )}
+
+      <Dialog open={goalOpen} onOpenChange={setGoalOpen}>
+        <DialogContent className="sm:max-w-md" data-testid="goals-dialog">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Set weekly targets</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div>
+              <label className="text-sm font-medium text-zinc-700 flex items-center gap-2"><Mic size={15} /> Speaking sessions / week</label>
+              <input type="number" min="0" max="50" value={goalSpeaking} onChange={(e) => setGoalSpeaking(e.target.value)} data-testid="goal-speaking-input"
+                className="mt-1.5 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-zinc-900 focus:outline-none transition-[box-shadow] duration-200" />
+            </div>
+            <div>
+              <label className="text-sm font-medium text-zinc-700 flex items-center gap-2"><PenLine size={15} /> Writing sessions / week</label>
+              <input type="number" min="0" max="50" value={goalWriting} onChange={(e) => setGoalWriting(e.target.value)} data-testid="goal-writing-input"
+                className="mt-1.5 w-full rounded-xl border border-zinc-200 px-4 py-2.5 text-sm focus:ring-2 focus:ring-zinc-900 focus:outline-none transition-[box-shadow] duration-200" />
+            </div>
+          </div>
+          <DialogFooter>
+            <button onClick={saveGoals} disabled={savingGoal} data-testid="save-goals-btn"
+              className="inline-flex items-center justify-center gap-2 bg-zinc-900 text-white hover:bg-zinc-800 rounded-full px-6 py-2.5 font-medium transition-[background-color] duration-200 disabled:opacity-60">
+              {savingGoal && <Loader2 className="animate-spin" size={16} />} Save targets
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

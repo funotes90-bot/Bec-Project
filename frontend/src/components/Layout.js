@@ -1,9 +1,9 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Mic, PenLine, History, LogOut, GraduationCap } from "lucide-react";
+import { LayoutDashboard, Mic, PenLine, History, LogOut, GraduationCap, Users } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import becLogo from "@/assets/logo_bec.png";
 
-const nav = [
+const baseNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/speaking", label: "Speaking", icon: Mic },
   { to: "/writing", label: "Writing", icon: PenLine },
@@ -14,6 +14,9 @@ export default function Layout({ children }) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+
+  const isTeacher = user && (user.role === "admin" || user.role === "teacher");
+  const nav = isTeacher ? [...baseNav, { to: "/class", label: "Class", icon: Users }] : baseNav;
 
   const handleLogout = () => {
     logout();

@@ -74,6 +74,11 @@ class LoginInput(BaseModel):
     password: str
 
 
+class GoalsInput(BaseModel):
+    speaking: int = Field(ge=0, le=50)
+    writing: int = Field(ge=0, le=50)
+
+
 class WritingInput(BaseModel):
     text: str
     prompt: Optional[str] = None
@@ -105,6 +110,12 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(status_code=401, detail="Invalid token")
+
+
+async def require_teacher(user: dict = Depends(get_current_user)) -> dict:
+    if user.get("role") not in ("admin", "teacher"):
+        raise HTTPException(status_code=403, detail="Teacher access required")
+    return user
 
 
 # ------------------------------------------------------------------ LLM analysis
@@ -447,6 +458,18 @@ async def progress(user: dict = Depends(get_current_user)):
 
     latest_advice = sessions[-1].get("analysis", {}).get("strategic_advice", []) if sessions else []
 
+    now = datetime.now(timezone.utc)
+    week_start = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    week_iso = week_start.isoformat()
+    this_week = [s for s in sessions if s.get("created_at", "") >= week_iso]
+    weekly = {
+        "week_start": week_iso[:10],
+        "speaking_done": len([s for s in this_week if s["mode"] == "speaking"]),
+        "writing_done": len([s for s in this_week if s["mode"] == "writing"]),
+        "speaking_goal": user.get("weekly_goal_speaking", 5),
+        "writing_goal": user.get("weekly_goal_writing", 3),
+    }
+
     return {
         "total_sessions": total,
         "speaking_count": len(speaking),
@@ -458,7 +481,40 @@ async def progress(user: dict = Depends(get_current_user)):
         "timeline": timeline,
         "top_weaknesses": [{"issue": k, "count": v} for k, v in top_weaknesses],
         "latest_advice": latest_advice,
+        "weekly": weekly,
     }
+
+
+@api_router.put("/goals")
+async def update_goals(data: GoalsInput, user: dict = Depends(get_current_user)):
+    await db.users.update_one(
+        {"_id": ObjectId(user["id"])},
+        {"$set": {"weekly_goal_speaking": data.speaking, "weekly_goal_writing": data.writing}},
+    )
+    return {"speaking": data.speaking, "writing": data.writing}
+
+
+@api_router.get("/admin/students")
+async def list_students(teacher: dict = Depends(require_teacher)):
+    students = []
+    async for u in db.users.find({"role": "user"}).sort("name", 1):
+        uid = str(u["_id"])
+        sessions = await db.sessions.find({"user_id": uid}).to_list(2000)
+        total = len(sessions)
+        avg = round(sum(s.get("overall_score", 0) for s in sessions) / total) if total else 0
+        latest = max(sessions, key=lambda s: s.get("created_at", "")) if sessions else None
+        students.append({
+            "id": uid,
+            "name": u.get("name", ""),
+            "email": u.get("email", ""),
+            "total_sessions": total,
+            "speaking_count": len([s for s in sessions if s.get("mode") == "speaking"]),
+            "writing_count": len([s for s in sessions if s.get("mode") == "writing"]),
+            "avg_overall": avg,
+            "latest_cefr": latest.get("cefr_level", "") if latest else "",
+            "last_active": latest.get("created_at", "") if latest else "",
+        })
+    return students
 
 
 # ------------------------------------------------------------------ startup
