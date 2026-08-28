@@ -190,6 +190,39 @@ async def run_vision(image_bytes: bytes) -> dict:
     return _strip_json(response)
 
 
+HANDWRITING_SYSTEM = """You are an expert Business English Certificate (BEC) writing examiner. You are given a PHOTO of a learner's HANDWRITTEN English text.
+First carefully read and transcribe the handwriting, then analyse the writing. Reply with STRICT JSON only (no markdown, no code fences):
+{
+  "transcribed_text": "<the exact text you read from the handwriting>",
+  "cefr_level": "A1|A2|B1|B2|C1|C2 estimate",
+  "overall_score": <int 0-100>,
+  "scores": {"grammar": <int 0-100>, "vocabulary": <int 0-100>, "coherence": <int 0-100>, "task_achievement": <int 0-100>},
+  "summary": "<2-3 encouraging sentences>",
+  "grammar_issues": [{"original": "<phrase>", "correction": "<corrected>", "explanation": "<why>"}],
+  "word_choice": [{"original": "<word used>", "suggestion": "<better word>", "reason": "<why>"}],
+  "improved_version": "<a polished rewrite of the whole text>",
+  "strategic_advice": ["<actionable step>", "..."],
+  "handwriting_feedback": "<1-2 sentences on legibility and neatness of the handwriting>"
+}
+If the image is unreadable or has no text, set transcribed_text to "" and explain in summary. Provide 2-5 strategic_advice items."""
+
+
+async def run_vision_writing(image_bytes: bytes, prompt_ctx: Optional[str] = None) -> dict:
+    b64 = base64.b64encode(image_bytes).decode()
+    chat = LlmChat(
+        api_key=EMERGENT_LLM_KEY,
+        session_id=f"bec-hw-{uuid.uuid4()}",
+        system_message=HANDWRITING_SYSTEM,
+    ).with_model("openai", "gpt-5.4")
+    ctx = f"Writing task/prompt: {prompt_ctx}\n\n" if prompt_ctx else ""
+    msg = UserMessage(
+        text=f"{ctx}Read the handwriting in this image and analyse the writing.",
+        file_contents=[ImageContent(b64)],
+    )
+    response = await chat.send_message(msg)
+    return _strip_json(response)
+
+
 # ------------------------------------------------------------------ auth routes
 @api_router.post("/auth/register")
 async def register(data: RegisterInput):
@@ -308,6 +341,25 @@ async def analyze_writing(data: WritingInput, user: dict = Depends(get_current_u
         logger.error(f"LLM analysis failed: {e}")
         raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
     session = await _save_session(user["id"], "writing", text, analysis, {"prompt": data.prompt})
+    return session
+
+
+@api_router.post("/writing/analyze-image")
+async def analyze_writing_image(user: dict = Depends(get_current_user), image: UploadFile = File(...), prompt: Optional[str] = Form(None)):
+    content = await image.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty image file")
+    if image.content_type and not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Please upload an image file (JPG or PNG).")
+    if len(content) > 12 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="Image too large. Please upload a photo under 12MB.")
+    try:
+        analysis = await run_vision_writing(content, prompt)
+    except Exception as e:
+        logger.error(f"Handwriting analysis failed: {e}")
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {e}")
+    text = (analysis.get("transcribed_text") or "").strip() or "(handwriting)"
+    session = await _save_session(user["id"], "writing", text, analysis, {"prompt": prompt, "handwriting": True})
     return session
 
 

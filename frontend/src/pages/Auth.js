@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { formatApiError } from "@/lib/api";
 import { toast } from "sonner";
 import becBuilding from "@/assets/bec_building.jpg";
+import becLogo from "@/assets/logo_bec.png";
 
 export default function Auth() {
   const [mode, setMode] = useState("login");
@@ -52,9 +53,7 @@ export default function Auth() {
       <div className="flex items-center justify-center p-6 sm:p-12">
         <div className="w-full max-w-sm animate-fade-up">
           <Link to="/" className="flex items-center gap-2.5 mb-10">
-            <div className="h-9 w-9 rounded-lg bg-zinc-900 flex items-center justify-center">
-              <GraduationCap className="text-white" size={20} />
-            </div>
+            <img src={becLogo} alt="Basic English Course logo" className="h-11 w-11 object-contain" />
             <span className="font-heading font-bold tracking-tight text-zinc-900">BEC Progress Assistant</span>
           </Link>
 

@@ -1,15 +1,9 @@
 import { useRef, useState, useEffect } from "react";
-import { Mic, Square, Loader2, Video, RefreshCw, Volume2 } from "lucide-react";
+import { Mic, Square, Loader2, Video, RefreshCw, Volume2, Shuffle, Lightbulb } from "lucide-react";
 import api, { formatApiError } from "@/lib/api";
 import AnalysisView from "@/components/AnalysisView";
+import { SPEAKING_PROMPTS, randomPrompt } from "@/lib/prompts";
 import { toast } from "sonner";
-
-const PROMPTS = [
-  "Describe your current job role and main responsibilities.",
-  "Explain a recent business challenge and how you handled it.",
-  "Present your opinion on remote versus office work.",
-  "Introduce your company and its products to a new client.",
-];
 
 export default function Speaking() {
   const [mode, setMode] = useState("audio"); // audio | video
@@ -18,16 +12,49 @@ export default function Speaking() {
   const [analyzing, setAnalyzing] = useState(false);
   const [result, setResult] = useState(null);
   const [videoUrl, setVideoUrl] = useState(null);
-  const [prompt] = useState(PROMPTS[Math.floor(Math.random() * PROMPTS.length)]);
+  const [prompt, setPrompt] = useState(() => randomPrompt(SPEAKING_PROMPTS));
+  const [thinkLeft, setThinkLeft] = useState(0);
 
   const mediaRecorderRef = useRef(null);
   const chunksRef = useRef([]);
   const streamRef = useRef(null);
   const videoRef = useRef(null);
   const timerRef = useRef(null);
+  const thinkRef = useRef(null);
+  const autoStartRef = useRef(false);
   const frameRef = useRef(null);
 
-  useEffect(() => () => stopStream(), []);
+  useEffect(() => () => { stopStream(); if (thinkRef.current) clearInterval(thinkRef.current); }, []);
+
+  useEffect(() => {
+    if (thinkLeft === 0 && autoStartRef.current) {
+      autoStartRef.current = false;
+      start();
+    }
+  }, [thinkLeft]);
+
+  const shufflePrompt = () => {
+    if (recording || thinkLeft > 0) return;
+    setPrompt((p) => randomPrompt(SPEAKING_PROMPTS, p));
+  };
+
+  const prepare = () => {
+    if (recording || thinkLeft > 0) return;
+    setResult(null);
+    setVideoUrl(null);
+    autoStartRef.current = true;
+    setThinkLeft(10);
+    thinkRef.current = setInterval(() => {
+      setThinkLeft((t) => (t <= 1 ? (clearInterval(thinkRef.current), 0) : t - 1));
+    }, 1000);
+  };
+
+  const skipThink = () => {
+    clearInterval(thinkRef.current);
+    autoStartRef.current = false;
+    setThinkLeft(0);
+    start();
+  };
 
   const stopStream = () => {
     if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
@@ -118,15 +145,21 @@ export default function Speaking() {
       </div>
 
       {/* Prompt card */}
+      {!result && (
       <div className="bg-white rounded-2xl border border-black/5 p-6 flex items-start gap-4">
         <div className="h-10 w-10 rounded-xl bg-zinc-900 flex items-center justify-center flex-shrink-0">
           <Volume2 className="text-white" size={18} />
         </div>
-        <div>
-          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-1">Speaking prompt</p>
-          <p className="text-zinc-800 font-medium">{prompt}</p>
+        <div className="flex-1">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-1">Impromptu prompt</p>
+          <p className="text-zinc-800 font-medium" data-testid="speaking-prompt">{prompt}</p>
         </div>
+        <button onClick={shufflePrompt} data-testid="shuffle-prompt-btn" disabled={recording || thinkLeft > 0}
+          className="inline-flex items-center gap-2 rounded-full border border-zinc-200 px-3 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-50 transition-[background-color] duration-200 disabled:opacity-40 flex-shrink-0">
+          <Shuffle size={14} /> New
+        </button>
       </div>
+      )}
 
       {/* Recorder */}
       {!result && (
@@ -152,22 +185,41 @@ export default function Speaking() {
                 <Loader2 className="animate-spin text-zinc-900" size={40} />
                 <p className="text-zinc-600">Transcribing & analysing your speech…</p>
               </div>
-            ) : (
+            ) : thinkLeft > 0 ? (
+              <div className="flex flex-col items-center gap-4 py-4" data-testid="think-countdown">
+                <div className="h-28 w-28 rounded-full bg-amber-50 ring-4 ring-amber-400/30 flex items-center justify-center animate-rec-pulse">
+                  <span className="font-heading text-5xl font-bold text-amber-600">{thinkLeft}</span>
+                </div>
+                <div className="text-center">
+                  <p className="font-heading font-semibold text-zinc-900 flex items-center justify-center gap-2">
+                    <Lightbulb size={18} className="text-amber-500" /> Think! Recording starts in {thinkLeft}s
+                  </p>
+                  <button onClick={skipThink} data-testid="skip-think-btn"
+                    className="mt-2 text-sm text-zinc-500 hover:text-zinc-900 transition-[color] duration-200">
+                    Skip & record now
+                  </button>
+                </div>
+              </div>
+            ) : recording ? (
               <>
-                <button
-                  onClick={recording ? stop : start}
-                  data-testid={recording ? "stop-recording-btn" : "start-recording-btn"}
-                  className={`h-28 w-28 rounded-full flex items-center justify-center transition-[transform,background-color] duration-200 hover:-translate-y-[2px] ${
-                    recording ? "bg-rose-50 ring-4 ring-rose-500/20 animate-rec-pulse" : "bg-zinc-900 hover:bg-zinc-800"
-                  }`}
-                >
-                  {recording ? <Square className="text-rose-500" size={36} fill="currentColor" /> : <Mic className="text-white" size={40} />}
+                <button onClick={stop} data-testid="stop-recording-btn"
+                  className="h-28 w-28 rounded-full flex items-center justify-center bg-rose-50 ring-4 ring-rose-500/20 animate-rec-pulse transition-[transform] duration-200 hover:-translate-y-[2px]">
+                  <Square className="text-rose-500" size={36} fill="currentColor" />
                 </button>
                 <div className="text-center">
                   <p className="font-mono text-2xl font-semibold text-zinc-900">{fmt(seconds)}</p>
-                  <p className="text-sm text-zinc-500 mt-1">
-                    {recording ? "Recording… tap to stop" : "Tap to start recording"}
-                  </p>
+                  <p className="text-sm text-zinc-500 mt-1">Recording… tap to stop</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <button onClick={prepare} data-testid="prepare-btn"
+                  className="h-28 w-28 rounded-full flex items-center justify-center bg-zinc-900 hover:bg-zinc-800 transition-[transform,background-color] duration-200 hover:-translate-y-[2px]">
+                  <Mic className="text-white" size={40} />
+                </button>
+                <div className="text-center">
+                  <p className="font-mono text-2xl font-semibold text-zinc-900">{fmt(0)}</p>
+                  <p className="text-sm text-zinc-500 mt-1">Tap for 10s thinking time, then recording starts</p>
                 </div>
               </>
             )}
@@ -177,7 +229,7 @@ export default function Speaking() {
 
       {result && (
         <div>
-          <button onClick={() => { setResult(null); setSeconds(0); setVideoUrl(null); }} data-testid="new-recording-btn"
+          <button onClick={() => { setResult(null); setSeconds(0); setVideoUrl(null); setPrompt(randomPrompt(SPEAKING_PROMPTS)); }} data-testid="new-recording-btn"
             className="inline-flex items-center gap-2 text-sm font-medium text-zinc-600 hover:text-zinc-900 mb-6 transition-[color] duration-200">
             <RefreshCw size={16} /> Record another
           </button>

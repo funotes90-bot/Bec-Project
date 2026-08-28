@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Mic, PenLine, History, LogOut, GraduationCap } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import becLogo from "@/assets/logo_bec.png";
 
 const nav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -24,9 +25,7 @@ export default function Layout({ children }) {
       {/* Sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden lg:flex w-64 flex-col border-r border-black/5 bg-white">
         <Link to="/dashboard" className="flex items-center gap-2.5 px-6 h-16 border-b border-black/5">
-          <div className="h-8 w-8 rounded-lg bg-zinc-900 flex items-center justify-center">
-            <GraduationCap className="h-4.5 w-4.5 text-white" size={18} />
-          </div>
+          <img src={becLogo} alt="Basic English Course logo" className="h-9 w-9 object-contain" />
           <span className="font-heading font-bold tracking-tight text-zinc-900">BEC Assistant</span>
         </Link>
         <nav className="flex-1 px-3 py-6 space-y-1">
@@ -66,7 +65,7 @@ export default function Layout({ children }) {
       {/* Mobile top bar */}
       <div className="lg:hidden sticky top-0 z-40 flex items-center justify-between h-14 px-4 bg-white/70 backdrop-blur-xl border-b border-black/5">
         <Link to="/dashboard" className="flex items-center gap-2 font-heading font-bold text-zinc-900">
-          <GraduationCap size={20} /> BEC
+          <img src={becLogo} alt="Basic English Course logo" className="h-7 w-7 object-contain" /> BEC
         </Link>
         <button onClick={handleLogout} className="text-zinc-600"><LogOut size={18} /></button>
       </div>

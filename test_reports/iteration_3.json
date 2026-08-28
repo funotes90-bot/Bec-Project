@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 3 testing (backend + frontend) of BEC Progress Assistant. Backend: 26/26 pytest tests passed including the NEW POST /api/writing/analyze-image handwriting-vision endpoint (auth 401, empty image 400, missing field 422, PNG + JPEG success with real GPT-5.4 vision transcription, DB persistence, appears in /api/sessions?mode=writing) plus full regression (login demo@bec.app, /auth/me, register, /writing/analyze, /sessions CRUD, PATCH /sessions/{id}/save, /progress, /speaking/analyze 401 without token). Frontend: verified official logo <img> renders on landing + sidebar (naturalWidth>0), Writing random prompt + 'New' shuffle changes prompt, 'Photo of handwriting' button + hidden file input, real image upload -> AnalysisView with 'What we read from your handwriting' card showing transcribed text + handwriting feedback, typed-text 'Analyse writing' still works, Speaking random impromptu prompt + shuffle, prepare-btn starts a 10s think-countdown that decrements (10 -> 7 after 3s), skip-think-btn visible and starts recording, and full countdown auto-starts recording. No blocking issues found.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "POST /api/auth/login", "issue": "No brute-force / rate limiting or account lockout after repeated failed logins (playbook check #4 not implemented)."},
+      {"endpoint": "CORS middleware", "issue": "allow_credentials=True combined with CORS_ORIGINS=\"*\" in backend/.env. Browsers reject credentialed requests with a wildcard origin. App works because it uses Authorization Bearer, but the config is contradictory - use explicit origins if cookies are ever added."},
+      {"endpoint": "POST /api/writing/analyze-image", "issue": "No content-type / size validation on the uploaded file. A non-image or very large file is forwarded straight to the vision model, surfacing as a generic 500 'Analysis failed'. Suggest validating image/* mime and a max size with a 400 response."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Writing - photo of handwriting", "issue": "The currently displayed random prompt is always sent as the writing task with the photo. If the user shuffles the prompt (or the photo is of an unrelated text), the model scores task_achievement very low (observed 10/100 and 34 overall for a well-formed letter). Consider making the prompt optional for photo uploads or asking the user to confirm the task.", "affected_selectors": ["[data-testid=\"photo-handwriting-btn\"]", "[data-testid=\"shuffle-writing-btn\"]"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_handwriting.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "Optional: validate mime-type/size of uploaded image in /api/writing/analyze-image and return 400 instead of 500 for unsupported files.",
+    "Optional: reconsider always attaching the shuffled prompt to a handwriting photo (low task_achievement scores for unrelated photos).",
+    "Optional security hardening: explicit CORS origins and login rate limiting."
+  ],
+  "critical_code_review_comments": [
+    "Speaking.js prepare(): start() is invoked from inside the setThinkLeft state-updater function. React state updaters must be pure; a side-effect there can fire twice under StrictMode/concurrent rendering (double getUserMedia / double MediaRecorder). Move the auto-start into a useEffect that watches thinkLeft, or track the deadline in a ref.",
+    "Speaking.js: thinkRef interval is only cleared on unmount and in skip/auto-start paths; there is no guard against clicking prepare-btn twice quickly (mitigated today because the button unmounts, but fragile).",
+    "server.py is ~500 lines and mixes auth, LLM prompts and routes; consider splitting into routers/ + services/ before it exceeds 700 lines.",
+    "Auth returns the JWT in the response body for localStorage storage (no httpOnly cookie). get_current_user does read an access_token cookie, so the cookie path is dead code - either set the httpOnly cookie on login or remove the cookie fallback."
+  ],
+  "updated_files": ["/app/backend/tests/test_handwriting.py", "/app/test_reports/iteration_3.json"],
+  "success_rate": {"backend": "100% (26/26 pytest)", "frontend": "100% of tested flows"},
+  "seed_data_creation": "Test writing sessions created via /api/writing/analyze-image (PNG + JPEG generated with PIL) were deleted in fixture teardown. UI test runs created a few demo-user writing sessions that remain in history.",
+  "should_call_test_agent_after_fix": false,
+  "should_main_agent_self_test": true,
+  "test_credentials": "demo@bec.app / demo123 (from /app/memory/test_credentials.md); admin@bec.app / admin123. Both password hashes verified as bcrypt $2b$12$.",
+  "context_for_next_testing_agent": "Backend suite lives in /app/backend/tests/backend_test.py (regression) and /app/backend/tests/test_handwriting.py (vision handwriting endpoint; generates its own images with PIL, ~10s per vision call). pytest.ini runs -n 2 --dist loadscope. Headless Chrome in this environment DOES provide a fake microphone, so speaking recording actually starts after the countdown (no permission toast) - but no real audio, so /speaking/analyze end-to-end still cannot be exercised (blob too short / no speech). Logo asset is /app/frontend/src/assets/logo_bec.png used in Layout/Landing/Auth.",
+  "rca_of_the_issue": "No defects requiring RCA. The low overall score (34) seen on the handwriting screenshot is expected model behaviour: the shuffled writing prompt ('favourite childhood memory') did not match the uploaded letter, so task_achievement was scored 10."
+}

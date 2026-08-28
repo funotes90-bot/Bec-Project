@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { Mic, PenLine, Activity, Volume2, Sparkles, GraduationCap, ArrowRight } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import becBuilding from "@/assets/bec_building.jpg";
+import becLogo from "@/assets/logo_bec.png";
 
 const features = [
   { icon: Activity, color: "text-rose-600", bg: "bg-rose-50", title: "Grammar Analysis", desc: "Every sentence checked, with corrections and plain-English explanations." },
@@ -23,9 +24,7 @@ export default function Landing() {
       <header className="sticky top-0 z-50 bg-white/70 backdrop-blur-xl border-b border-black/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="h-8 w-8 rounded-lg bg-zinc-900 flex items-center justify-center">
-              <GraduationCap className="text-white" size={18} />
-            </div>
+            <img src={becLogo} alt="Basic English Course logo" className="h-10 w-10 object-contain" />
             <span className="font-heading font-bold tracking-tight text-zinc-900">BEC Progress Assistant</span>
           </div>
           <Link to="/auth" data-testid="header-login-link" className="bg-zinc-900 text-white hover:bg-zinc-800 rounded-full px-5 py-2 text-sm font-medium transition-[background-color] duration-200">

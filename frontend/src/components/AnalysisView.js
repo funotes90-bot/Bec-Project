@@ -66,6 +66,7 @@ export default function AnalysisView({ analysis, mode, content, videoUrl }) {
     cefr_level, overall_score, scores = {}, summary,
     grammar_issues = [], word_choice = [], pronunciation = [],
     improved_version, strategic_advice = [], delivery_feedback,
+    transcribed_text, handwriting_feedback,
   } = analysis;
 
   return (
@@ -109,6 +110,16 @@ export default function AnalysisView({ analysis, mode, content, videoUrl }) {
         <div className="bg-white rounded-2xl border border-black/5 p-6">
           <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-3">Transcript</p>
           <p className="text-zinc-700 leading-relaxed italic">"{content}"</p>
+        </div>
+      )}
+
+      {mode === "writing" && transcribed_text && (
+        <div className="bg-white rounded-2xl border border-black/5 p-6">
+          <p className="text-xs font-bold uppercase tracking-widest text-zinc-400 mb-3">What we read from your handwriting</p>
+          <p className="text-zinc-700 leading-relaxed whitespace-pre-wrap">{transcribed_text}</p>
+          {handwriting_feedback && (
+            <p className="mt-3 text-sm text-amber-700 bg-amber-50 rounded-lg px-3 py-2">{handwriting_feedback}</p>
+          )}
         </div>
       )}
 
